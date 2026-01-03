@@ -1,13 +1,25 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
+
+# Install build dependencies for native modules (canvas, sharp)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    build-essential \
+    pkg-config \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (needed for build)
+RUN npm ci
 
 # Copy source code
 COPY src ./src
@@ -16,13 +28,24 @@ COPY tsconfig.json ./
 # Build TypeScript
 RUN npm run build
 
+# Remove dev dependencies after build
+RUN npm prune --omit=dev
+
 # Runtime stage
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install runtime dependencies for canvas and sharp, plus dumb-init
+RUN apt-get update && apt-get install -y \
+    dumb-init \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libjpeg62-turbo \
+    libgif7 \
+    librsvg2-2 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy dependencies from builder
 COPY --from=builder /app/node_modules ./node_modules
@@ -33,12 +56,10 @@ COPY --from=builder /app/lib ./lib
 # Copy package files
 COPY package*.json ./
 
-# Create non-root user for security
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser && \
-    chown -R appuser:appuser /app
+# Set ownership to node user (already exists in node base image)
+RUN chown -R node:node /app
 
-USER appuser
+USER node
 
 # Set environment variables
 ENV NODE_ENV=production

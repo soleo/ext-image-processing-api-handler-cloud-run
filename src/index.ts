@@ -202,13 +202,16 @@ app.use('*', function notFoundHandler(_req, res) {
   res.status(404).send('Not Found');
 });
 
-if (process.env.EXPRESS_SERVER === 'true') {
-  app.listen(3001, 'localhost', () =>
-    functions.logger.info(
-      `Local dev server listening on http://localhost:3001`,
-    ),
+// Initialize Firebase Admin
+firebase.initializeApp();
+
+// Start HTTP server for Cloud Run
+// Cloud Run sets the PORT environment variable
+const port = parseInt(process.env.PORT || '8080', 10);
+const host = process.env.HOST || '0.0.0.0';
+
+app.listen(port, host, () => {
+  functions.logger.info(
+    `Image processing API server listening on http://${host}:${port}`,
   );
-} else {
-  firebase.initializeApp();
-  exports.handler = functions.https.onRequest(app);
-}
+});

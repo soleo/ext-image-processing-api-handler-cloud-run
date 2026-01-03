@@ -1,0 +1,104 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ext-image-processing-api-handler
+  # Update namespace with your GCP project number
+  namespace: '11330541031'
+  labels:
+    goog-cloudfunctions-runtime: nodejs20
+    cloud.googleapis.com/location: us-central1
+    goog-firebase-ext: image-processing-api
+    migration-tool: gcf-gen1-to-run
+    migrated-from: cloudfunctions
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/maxScale: '34'
+    run.googleapis.com/startup-cpu-boost: 'true'
+
+spec:
+  template:
+    metadata:
+      labels:
+        goog-firebase-ext: image-processing-api
+        run.googleapis.com/startupProbeType: Default
+      annotations:
+        cloudfunctions.googleapis.com/trigger-type: HTTP_TRIGGER
+        autoscaling.knative.dev/maxScale: '34'
+        run.googleapis.com/startup-cpu-boost: 'true'
+
+    spec:
+      containerConcurrency: 1
+      timeoutSeconds: 60
+      # Update service account name with your project ID
+      serviceAccountName: ext-image-processing-api@xinjiangshao.iam.gserviceaccount.com
+
+      containers:
+      - name: worker
+        # Update image with your GCP project and artifact registry
+        image: us-central1-docker.pkg.dev/xinjiangshao/gcf-artifacts/ext-image-processing-api-handler:latest
+        
+        ports:
+        - name: http1
+          containerPort: 8080
+
+        env:
+        # Cloud Storage
+        - name: CLOUD_STORAGE_BUCKET
+          value: 'xinjiangshao.appspot.com'
+        - name: STORAGE_BUCKET
+          value: 'xinjiangshao.appspot.com'
+
+        # CORS Configuration
+        - name: CORS_ORIGIN_ALLOW_LIST
+          value: '*'
+
+        # Database Configuration
+        - name: DATABASE_INSTANCE
+          value: ''
+        - name: DATABASE_URL
+          value: ''
+
+        # Firebase Extension
+        - name: EXT_INSTANCE_ID
+          value: 'image-processing-api'
+        - name: FIREBASE_CONFIG
+          value: '{"projectId":"xinjiangshao","databaseURL":"","storageBucket":"xinjiangshao.appspot.com"}'
+
+        # GCP Project
+        - name: GCLOUD_PROJECT
+          value: 'xinjiangshao'
+        - name: PROJECT_ID
+          value: 'xinjiangshao'
+
+        # Service Configuration
+        - name: HOSTNAME
+          value: 'xinjiangshao.com'
+        - name: LOCATION
+          value: 'us-central1'
+
+        # Logging
+        - name: LOG_EXECUTION_ID
+          value: 'true'
+
+        # Function Configuration
+        - name: FUNCTION_SIGNATURE_TYPE
+          value: 'http'
+
+        resources:
+          limits:
+            cpu: '0.5833'
+            memory: 1024Mi
+
+        # Startup probe configuration
+        startupProbe:
+          timeoutSeconds: 240
+          periodSeconds: 240
+          failureThreshold: 1
+          tcpSocket:
+            port: 8080
+
+      runtimeClassName: run.googleapis.com/linux-base-image-update
+
+  traffic:
+  - percent: 100
+    latestRevision: true
