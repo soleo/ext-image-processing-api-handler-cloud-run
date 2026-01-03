@@ -36,9 +36,8 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install runtime dependencies for canvas and sharp, plus dumb-init
+# Install runtime dependencies for canvas and sharp
 RUN apt-get update && apt-get install -y \
-    dumb-init \
     libcairo2 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
@@ -68,12 +67,10 @@ ENV PORT=8080
 # Expose port (Cloud Run specific)
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
-
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["/usr/sbin/dumb-init", "--"]
+# Health check (for local Docker, not used by Cloud Run)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:8080/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})" || exit 1
 
 # Start application
+# Note: Cloud Run handles signals properly, so dumb-init is not needed
 CMD ["node", "lib/index.js"]

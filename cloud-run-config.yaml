@@ -90,12 +90,39 @@ spec:
             memory: 1024Mi
 
         # Startup probe configuration
+        # Startup probe configuration
+        # HTTP probe is more reliable than TCP for gRPC/Express servers
         startupProbe:
-          timeoutSeconds: 240
-          periodSeconds: 240
-          failureThreshold: 1
-          tcpSocket:
+          httpGet:
+            path: /health
             port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          timeoutSeconds: 10
+          periodSeconds: 10
+          failureThreshold: 30  # 30 * 10 = 300 seconds max startup time
+        
+        # Liveness probe to detect hung processes
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          timeoutSeconds: 10
+          periodSeconds: 30
+          failureThreshold: 3
+        
+        # Readiness probe to control traffic
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 2
 
       runtimeClassName: run.googleapis.com/linux-base-image-update
 
